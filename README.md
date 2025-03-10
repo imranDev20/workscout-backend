@@ -18,7 +18,7 @@ A RESTful API backend built with Node.js, Express, and TypeScript following the 
 ## Project Structure
 
 ```
-my-api/
+workscout-backend/
 ├── src/
 │   ├── config/              # Configuration files
 │   ├── controllers/         # Route controllers (controller layer)
@@ -45,7 +45,7 @@ my-api/
 
    ```
    git clone <repository-url>
-   cd my-api
+   cd workscout-backend
    ```
 
 2. Install dependencies
