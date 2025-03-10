@@ -1,0 +1,245 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - Base for both job seekers and employers
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  seekerProfile   SeekerProfile?
+  employerProfile EmployerProfile?
+
+  // Add two-factor authentication, email verification, etc. as needed
+}
+
+enum UserRole {
+  SEEKER
+  EMPLOYER
+  ADMIN
+}
+
+// Job Seeker Profile
+model SeekerProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  headline  String?
+  summary   String?  @db.Text
+  phone     String?
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  education    Education[]
+  experience   Experience[]
+  skills       SeekerSkill[]
+  applications JobApplication[]
+  resume       Resume?
+}
+
+// Job Seeker Education
+model Education {
+  id              String    @id @default(uuid())
+  seekerProfileId String
+  institution     String
+  degree          String
+  fieldOfStudy    String
+  startDate       DateTime
+  endDate         DateTime?
+  description     String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  seekerProfile SeekerProfile @relation(fields: [seekerProfileId], references: [id], onDelete: Cascade)
+}
+
+// Job Seeker Experience
+model Experience {
+  id              String    @id @default(uuid())
+  seekerProfileId String
+  company         String
+  title           String
+  location        String?
+  startDate       DateTime
+  endDate         DateTime?
+  current         Boolean   @default(false)
+  description     String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  seekerProfile SeekerProfile @relation(fields: [seekerProfileId], references: [id], onDelete: Cascade)
+}
+
+// Job Seeker Skills
+model SeekerSkill {
+  id              String @id @default(uuid())
+  seekerProfileId String
+  skillId         String
+
+  // Relations
+  seekerProfile SeekerProfile @relation(fields: [seekerProfileId], references: [id], onDelete: Cascade)
+  skill         Skill         @relation(fields: [skillId], references: [id])
+
+  @@unique([seekerProfileId, skillId])
+}
+
+// Skills catalog
+model Skill {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  category  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  seekers   SeekerSkill[]
+  jobSkills JobSkill[]
+}
+
+// Resume model
+model Resume {
+  id              String   @id @default(uuid())
+  seekerProfileId String   @unique
+  fileName        String
+  fileUrl         String
+  contentType     String
+  fileSize        Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  seekerProfile SeekerProfile @relation(fields: [seekerProfileId], references: [id], onDelete: Cascade)
+}
+
+// Employer Profile
+model EmployerProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  companyName String
+  companySize String?
+  industry    String?
+  website     String?
+  description String?  @db.Text
+  logo        String?
+  location    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs Job[]
+}
+
+// Job Listings
+model Job {
+  id                String   @id @default(uuid())
+  employerProfileId String
+  title             String
+  description       String   @db.Text
+  location          String?
+  jobType           JobType
+  salary            String?
+  requirements      String?  @db.Text
+  responsibilities  String?  @db.Text
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  employerProfile EmployerProfile  @relation(fields: [employerProfileId], references: [id], onDelete: Cascade)
+  skills          JobSkill[]
+  applications    JobApplication[]
+  categories      JobCategory[]
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  REMOTE
+}
+
+// Job Skills
+model JobSkill {
+  id      String @id @default(uuid())
+  jobId   String
+  skillId String
+
+  // Relations
+  job   Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id])
+
+  @@unique([jobId, skillId])
+}
+
+// Job Applications
+model JobApplication {
+  id              String            @id @default(uuid())
+  jobId           String
+  seekerProfileId String
+  coverLetter     String?           @db.Text
+  status          ApplicationStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  job           Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  seekerProfile SeekerProfile @relation(fields: [seekerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, seekerProfileId])
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWING
+  SHORTLISTED
+  REJECTED
+  INTERVIEWING
+  OFFERED
+  ACCEPTED
+  WITHDRAWN
+}
+
+// Job Categories
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  jobs JobCategory[]
+}
+
+model JobCategory {
+  id         String @id @default(uuid())
+  jobId      String
+  categoryId String
+
+  // Relations
+  job      Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([jobId, categoryId])
+}
