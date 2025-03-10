@@ -1,41 +1,45 @@
-import express, { Express, Request, Response, NextFunction } from "express";
+// src/app.ts
+
+import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import { config } from "./config/environment.js";
+import { apiRoutes } from "./routes/index.js";
 
-// Import routes
-import apiRoutes from "./routes/index.js";
+export const createApp = () => {
+  const app = express();
 
-const app: Express = express();
+  // Apply middleware
+  app.use(helmet());
+  app.use(cors());
+  app.use(morgan(config.isDevelopment ? "dev" : "combined"));
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
-// Middlewares
-app.use(helmet());
-app.use(cors());
-app.use(morgan("dev"));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+  // Apply API routes
+  app.use(config.apiPrefix, apiRoutes);
 
-// API Routes
-app.use("/api", apiRoutes);
-
-// Health check endpoint
-app.get("/health", (req: Request, res: Response) => {
-  res.status(200).json({ status: "ok" });
-});
-
-// 404 handler
-app.use((req: Request, res: Response) => {
-  res.status(404).json({ message: "Not found" });
-});
-
-// Error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({
-    message: "Internal Server Error",
-    ...(config.isDevelopment && { error: err.message }),
+  // Health check endpoint
+  app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok" });
   });
-});
 
-export default app;
+  // Error handling
+  app.use(
+    (
+      err: Error,
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction
+    ) => {
+      console.error(err.stack);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: config.isDevelopment ? err.message : "Something went wrong",
+      });
+    }
+  );
+
+  return app;
+};
